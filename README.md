@@ -67,3 +67,15 @@ npm test
 ## 当前定位
 
 这是内部使用的轻量 MVP。提醒目前是产品内提醒，登录或刷新时根据任务/节点日期实时计算。后续如果需要主动推送，可在提醒数据之上增加飞书机器人、邮件或企业微信定时推送；需求拆解也预留为独立接口，后续可以把当前规则模板替换成大模型输出。
+
+## Requirement analysis model (optional)
+
+The analysis page works locally without external services. To enable an OpenAI-compatible model, configure:
+
+```text
+ANALYSIS_API_KEY=...
+ANALYSIS_BASE_URL=https://api.openai.com/v1
+ANALYSIS_MODEL=gpt-4.1-mini
+```
+
+If the provider is unavailable or returns an invalid result, TeamFlow automatically falls back to local structured analysis.

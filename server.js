@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { handleFeatureApi } = require('./feature-api');
 
 const PORT = Number(process.env.PORT || 7360);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -189,6 +190,8 @@ async function api(req, res, pathname) {
   if (!user) return json(res, 401, { error: '请先登录' });
   if (pathname === '/api/me') return json(res, 200, { user: publicUser(user), settings: db.settings });
   if (pathname === '/api/dashboard') return json(res, 200, dashboard());
+  const featureHandled = await handleFeatureApi({ req, res, pathname, user, db, json, readBody, can, clean, id, now, dateOnly, hashPassword, publicUser, enrichRequirement, logActivity, saveDb });
+  if (featureHandled) return;
   if (pathname === '/api/users' && req.method === 'GET') return json(res, 200, { users: db.users.map(publicUser) });
   if (pathname === '/api/users' && req.method === 'POST') {
     if (!can(user, 'team.manage')) return json(res, 403, { error: '没有成员管理权限' });
