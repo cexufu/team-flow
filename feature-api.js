@@ -56,7 +56,7 @@ async function analyze(rawText, clean) {
 }
 
 async function handleFeatureApi(ctx) {
-  const { req, res, pathname, user, db, json, readBody, can, clean, id, now, dateOnly, hashPassword, publicUser, enrichRequirement, logActivity, saveDb } = ctx;
+  const { req, res, pathname, user, db, json, readBody, can, clean, id, now, dateOnly, hashPassword, publicUser, enrichRequirement, logActivity, saveDb, reminderEngine } = ctx;
   const userMatch = pathname.match(/^\/api\/users\/([^/]+)$/);
   if (userMatch && req.method === 'PATCH') {
     if (!can(user, 'team.manage')) { json(res, 403, { error: message.forbidden }); return true; }
@@ -114,6 +114,15 @@ async function handleFeatureApi(ctx) {
     const tasks = (Array.isArray(result.tasks) ? result.tasks.slice(0, 10) : []).map(title => ({ id: id('task'), requirementId: requirement.id, title: clean(title), description: '\u7531\u9700\u6c42\u5206\u6790\u751f\u6210\uff0c\u8bf7\u5728\u8bc4\u5ba1\u540e\u8865\u5145\u7ec6\u8282\u3002', status: 'todo', priority: requirement.priority, assigneeId: requirement.ownerId, dueDate: requirement.targetDate || '', estimate: 0, createdBy: user.id, createdAt: now(), updatedAt: now() }));
     db.tasks.push(...tasks); logActivity(user.id, `Converted analysis ${requirement.title}`, 'requirement', requirement.id); saveDb();
     json(res, 201, { requirement: enrichRequirement(requirement), tasks }); return true;
+  }
+  if (pathname === '/api/reminders/tracking' && req.method === 'GET') {
+    const deliveries = (db.reminderDeliveries || []).filter(item => !item.hidden).slice(0, 50);
+    json(res, 200, { pending: reminderEngine.collect(), deliveries, scheduler: reminderEngine.status() }); return true;
+  }
+  if (pathname === '/api/reminders/run' && req.method === 'POST') {
+    if (!can(user, 'settings.manage')) { json(res, 403, { error: '\u4ec5\u56e2\u961f\u8d1f\u8d23\u4eba\u53ef\u4ee5\u624b\u52a8\u6267\u884c\u63d0\u9192' }); return true; }
+    const result = await reminderEngine.run({ force: true, actorId: user.id });
+    json(res, result.ok ? 200 : 503, result); return true;
   }
   return false;
 }

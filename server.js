@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { handleFeatureApi } = require('./feature-api');
+const { createReminderEngine } = require('./reminder-engine');
 
 const PORT = Number(process.env.PORT || 7360);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -81,8 +82,11 @@ let db = loadDb();
 function saveDb() {
   const temp = `${DB_FILE}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(db, null, 2));
+  if (fs.existsSync(DB_FILE)) fs.copyFileSync(DB_FILE, `${DB_FILE}.bak`);
   fs.renameSync(temp, DB_FILE);
 }
+
+const reminderEngine = createReminderEngine({ getDb: () => db, saveDb });
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
@@ -172,7 +176,7 @@ function decomposeRequirement(requirement, actorId) {
 }
 
 async function api(req, res, pathname) {
-  if (pathname === '/api/health') return json(res, 200, { ok: true, service: 'teamflow-lite' });
+  if (pathname === '/api/health') return json(res, 200, { ok: true, service: 'teamflow-lite', dataWritable: fs.existsSync(DATA_DIR), reminder: reminderEngine.status() });
   if (pathname === '/api/login' && req.method === 'POST') {
     const body = await readBody(req);
     const user = db.users.find(item => item.email.toLowerCase() === clean(body.email).toLowerCase());
@@ -190,7 +194,7 @@ async function api(req, res, pathname) {
   if (!user) return json(res, 401, { error: '请先登录' });
   if (pathname === '/api/me') return json(res, 200, { user: publicUser(user), settings: db.settings });
   if (pathname === '/api/dashboard') return json(res, 200, dashboard());
-  const featureHandled = await handleFeatureApi({ req, res, pathname, user, db, json, readBody, can, clean, id, now, dateOnly, hashPassword, publicUser, enrichRequirement, logActivity, saveDb });
+  const featureHandled = await handleFeatureApi({ req, res, pathname, user, db, json, readBody, can, clean, id, now, dateOnly, hashPassword, publicUser, enrichRequirement, logActivity, saveDb, reminderEngine });
   if (featureHandled) return;
   if (pathname === '/api/users' && req.method === 'GET') return json(res, 200, { users: db.users.map(publicUser) });
   if (pathname === '/api/users' && req.method === 'POST') {
@@ -312,6 +316,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => console.log(`TeamFlow Lite running at http://localhost:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+  reminderEngine.start();
+  console.log(`TeamFlow Lite running at http://localhost:${PORT}`);
+});
+
+function shutdown() {
+  reminderEngine.stop();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 module.exports = { server };

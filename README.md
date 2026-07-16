@@ -79,3 +79,21 @@ ANALYSIS_MODEL=gpt-4.1-mini
 ```
 
 If the provider is unavailable or returns an invalid result, TeamFlow automatically falls back to local structured analysis.
+
+## Production reminders and tracking
+
+For continuous multi-user use, deploy the service with a persistent disk. The server checks due and overdue work every 15 minutes and sends one successful notification per item per day at the configured local hour.
+
+Required Render settings:
+
+```text
+DATA_DIR=/var/data
+FEISHU_REMINDER_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/...
+APP_PUBLIC_URL=https://your-teamflow.onrender.com
+REMINDER_TIMEZONE=Asia/Shanghai
+REMINDER_HOUR=9
+```
+
+`REMINDER_WEBHOOK_URL` can be used instead of Feishu for a generic JSON webhook. Delivery attempts and errors appear in the Reminder Tracking page. Every database save is atomic and keeps the previous version at `teamflow.json.bak`.
+
+The Starter instance is recommended for reliable scheduled reminders because it stays available. Free instances that sleep cannot guarantee notification timing.

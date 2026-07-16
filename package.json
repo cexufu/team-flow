@@ -5,8 +5,8 @@
   "description": "Lightweight internal team, task and product requirement management.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check feature-api.js && node --check public/app.js && node --check public/enhancements.js",
-    "test": "node tests/smoke.js && node tests/features.js"
+    "check": "node --check server.js && node --check feature-api.js && node --check reminder-engine.js && node --check public/app.js && node --check public/enhancements.js",
+    "test": "node tests/smoke.js && node tests/features.js && node tests/reminders.js && node tests/concurrency.js"
   },
   "engines": {
     "node": ">=18"

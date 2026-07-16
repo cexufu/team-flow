@@ -13,6 +13,14 @@ services:
         value: /var/data
       - key: INITIAL_ADMIN_PASSWORD
         generateValue: true
+      - key: FEISHU_REMINDER_WEBHOOK
+        sync: false
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: REMINDER_TIMEZONE
+        value: Asia/Shanghai
+      - key: REMINDER_HOUR
+        value: 9
     disk:
       name: teamflow-data
       mountPath: /var/data

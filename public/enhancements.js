@@ -9,8 +9,24 @@ let requirementAnalysisResult = null;
     requirementButton.insertAdjacentElement('afterend', button);
     hydrateIcons(button);
   }
+  const taskButton = document.querySelector('#nav [data-page="tasks"]');
+  if (taskButton && !document.querySelector('#nav [data-page="tracking"]')) {
+    const button = document.createElement('button');
+    button.dataset.page = 'tracking';
+    button.innerHTML = '<span data-icon="bell"></span><span>\u63d0\u9192\u8ffd\u8e2a</span>';
+    taskButton.insertAdjacentElement('afterend', button);
+    hydrateIcons(button);
+  }
   const baseNavigate = navigate;
   navigate = function enhancedNavigate(page) {
+    if (page === 'tracking') {
+      state.page = page;
+      document.querySelector('.sidebar').classList.remove('open');
+      document.querySelectorAll('#nav button').forEach(button => button.classList.toggle('active', button.dataset.page === page));
+      document.querySelector('#pageTitle').textContent = '\u63d0\u9192\u8ffd\u8e2a';
+      renderReminderTracking();
+      return;
+    }
     if (page !== 'analysis') return baseNavigate(page);
     state.page = page;
     document.querySelector('.sidebar').classList.remove('open');
@@ -92,4 +108,19 @@ function openAnalysisConversion() {
   openModal(`<p class="eyebrow">Create requirement</p><h2>\u8f6c\u4e3a\u6b63\u5f0f\u9700\u6c42</h2><p class="modal-desc">\u540c\u65f6\u751f\u6210 ${result.tasks.length} \u4e2a\u5efa\u8bae\u4efb\u52a1\uff0c\u521b\u5efa\u540e\u53ef\u7ee7\u7eed\u8c03\u6574\u3002</p><form id="analysisConvertForm" class="form-grid"><label>\u8d1f\u8d23\u4eba<select name="ownerId">${state.users.filter(u => u.status === 'active').map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('')}</select></label><label>\u4f18\u5148\u7ea7<select name="priority">${options([['P0','P0'],['P1','P1'],['P2','P2'],['P3','P3']], result.suggestedPriority)}</select></label><label>\u9700\u6c42\u7c7b\u578b<select name="type">${options(Object.entries(labels.type))}</select></label><label>\u76ee\u6807\u65e5\u671f<input type="date" name="targetDate"></label><div class="modal-actions full"><button type="button" class="btn secondary" data-close>\u53d6\u6d88</button><button class="btn primary">\u521b\u5efa\u9700\u6c42\u548c\u4efb\u52a1</button></div></form>`);
   $('[data-close]').onclick = closeModal;
   $('#analysisConvertForm').onsubmit = async event => { event.preventDefault(); const body = { ...Object.fromEntries(new FormData(event.currentTarget)), analysis: result }; try { const created = await api('/api/requirement-analysis/convert', { method: 'POST', body: JSON.stringify(body) }); requirementAnalysisResult = null; sessionStorage.removeItem('analysisDraft'); closeModal(); await loadCore(); navigate('requirements'); toast(`\u9700\u6c42\u5df2\u521b\u5efa\uff0c\u540c\u65f6\u751f\u6210 ${created.tasks.length} \u4e2a\u4efb\u52a1`); } catch (error) { toast(error.message); } };
+}
+
+async function renderReminderTracking() {
+  $('#content').innerHTML = '<div class="tracking-loading">\u6b63\u5728\u8bfb\u53d6\u63d0\u9192\u72b6\u6001...</div>';
+  try {
+    const data = await api('/api/reminders/tracking');
+    const channelReady = data.scheduler.feishu || data.scheduler.generic;
+    const statusText = channelReady ? (data.scheduler.feishu ? '\u98de\u4e66 Webhook \u5df2\u8fde\u63a5' : '\u901a\u7528 Webhook \u5df2\u8fde\u63a5') : '\u672a\u914d\u7f6e\u4e3b\u52a8\u63d0\u9192\u901a\u9053';
+    $('#content').innerHTML = `<div class="section-head"><div><h2>\u63d0\u9192\u4e0e\u8ffd\u8e2a</h2><p>\u670d\u52a1\u7aef\u6bcf 15 \u5206\u949f\u68c0\u67e5\uff0c\u6bcf\u5929 ${data.scheduler.reminderHour}:00 \u6309 ${escapeHtml(data.scheduler.timeZone)} \u65f6\u533a\u4e3b\u52a8\u63a8\u9001\u3002</p></div>${can('settings.manage') ? '<button class="btn primary" id="runReminders">\u7acb\u5373\u68c0\u67e5\u5e76\u63a8\u9001</button>' : ''}</div>
+      <section class="tracking-status ${channelReady ? 'ready' : 'warning'}"><span class="tracking-status-icon">${channelReady ? '\u2713' : '!'}</span><div><strong>${statusText}</strong><p>${channelReady ? '\u5230\u671f\u548c\u903e\u671f\u4e8b\u9879\u4f1a\u4e3b\u52a8\u63a8\u9001\uff0c\u540c\u4e00\u4e8b\u9879\u6bcf\u5929\u6700\u591a\u6210\u529f\u53d1\u9001\u4e00\u6b21\u3002' : '\u4ea7\u54c1\u5185\u4f1a\u7ee7\u7eed\u663e\u793a\u63d0\u9192\uff1b\u8981\u4e3b\u52a8\u901a\u77e5\uff0c\u8bf7\u5728\u7ebf\u4e0a\u73af\u5883\u914d\u7f6e FEISHU_REMINDER_WEBHOOK\u3002'}</p></div><small>\u4e0a\u6b21\u68c0\u67e5\uff1a${data.scheduler.lastCheckAt ? new Date(data.scheduler.lastCheckAt).toLocaleString('zh-CN') : '\u5c1a\u672a\u6267\u884c'}</small></section>
+      <div class="tracking-grid"><section class="panel"><div class="panel-head"><h3>\u5f53\u524d\u5f85\u8ddf\u8fdb</h3><span class="count">${data.pending.length}</span></div>${data.pending.length ? data.pending.map(item => `<div class="tracking-item"><span class="reminder-dot ${item.state}" data-icon="${item.state === 'overdue' ? 'alert' : 'clock'}"></span><div><strong>${escapeHtml(item.title)}</strong><p>${item.type === 'milestone' ? '\u65f6\u95f4\u8282\u70b9' : '\u56e2\u961f\u4efb\u52a1'} \u00b7 ${escapeHtml(item.requirementTitle || '\u672a\u5173\u8054\u9700\u6c42')}</p></div><small>${item.state === 'overdue' ? '\u5df2\u903e\u671f' : '\u5373\u5c06\u5230\u671f'}<br>${escapeHtml(item.dueDate)}</small></div>`).join('') : '<div class="empty">\u6682\u65e0\u5230\u671f\u6216\u903e\u671f\u4e8b\u9879</div>'}</section>
+      <section class="panel"><div class="panel-head"><h3>\u53d1\u9001\u8bb0\u5f55</h3><span class="count">${data.deliveries.length}</span></div>${data.deliveries.length ? data.deliveries.map(log => `<div class="delivery-item"><span class="delivery-state ${log.status}">${log.status === 'sent' ? '\u5df2\u53d1\u9001' : log.status === 'partial' ? '\u90e8\u5206\u6210\u529f' : '\u5931\u8d25'}</span><div><strong>${log.itemCount || 0} \u4e2a\u4e8b\u9879</strong><p>${(log.channels || []).join(' + ') || escapeHtml(log.error || '\u65e0\u901a\u9053')}</p></div><small>${new Date(log.createdAt).toLocaleString('zh-CN')}</small></div>`).join('') : '<div class="empty">\u8fd8\u6ca1\u6709\u53d1\u9001\u8bb0\u5f55</div>'}</section></div>`;
+    hydrateIcons($('#content'));
+    if ($('#runReminders')) $('#runReminders').onclick = async () => { const button = $('#runReminders'); button.disabled = true; button.textContent = '\u6b63\u5728\u63a8\u9001...'; try { const result = await api('/api/reminders/run', { method: 'POST', body: '{}' }); toast(result.sent ? `\u5df2\u63a8\u9001 ${result.sent} \u4e2a\u63d0\u9192` : '\u6682\u65e0\u65b0\u63d0\u9192'); renderReminderTracking(); } catch (error) { toast(error.message); renderReminderTracking(); } };
+  } catch (error) { $('#content').innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`; }
 }
