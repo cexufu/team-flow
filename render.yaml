@@ -2,6 +2,7 @@ services:
   - type: web
     name: teamflow-lite
     runtime: node
+    region: singapore
     plan: starter
     buildCommand: npm install
     startCommand: npm start
@@ -12,10 +13,8 @@ services:
       - key: DATA_DIR
         value: /var/data
       - key: INITIAL_ADMIN_PASSWORD
-        generateValue: true
-      - key: FEISHU_REMINDER_WEBHOOK
         sync: false
-      - key: APP_PUBLIC_URL
+      - key: FEISHU_REMINDER_WEBHOOK
         sync: false
       - key: REMINDER_TIMEZONE
         value: Asia/Shanghai

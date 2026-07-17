@@ -33,7 +33,8 @@ function createReminderEngine({ getDb, saveDb }) {
   }
 
   function deliveryConfig() {
-    return { feishu: Boolean(process.env.FEISHU_REMINDER_WEBHOOK), generic: Boolean(process.env.REMINDER_WEBHOOK_URL), publicUrl: process.env.APP_PUBLIC_URL || '', timeZone, reminderHour };
+    const publicUrl = process.env.APP_PUBLIC_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
+    return { feishu: Boolean(process.env.FEISHU_REMINDER_WEBHOOK), generic: Boolean(process.env.REMINDER_WEBHOOK_URL), publicUrl, timeZone, reminderHour };
   }
 
   function buildMessage(items) {
@@ -45,7 +46,8 @@ function createReminderEngine({ getDb, saveDb }) {
       const owner = users[item.ownerId]?.name || 'Unassigned';
       return `${flag} ${item.title} | ${item.dueDate} | ${owner}${item.requirementTitle ? ` | ${item.requirementTitle}` : ''}`;
     });
-    const link = process.env.APP_PUBLIC_URL ? `\nOpen TeamFlow: ${process.env.APP_PUBLIC_URL}` : '';
+    const publicUrl = deliveryConfig().publicUrl;
+    const link = publicUrl ? `\nOpen TeamFlow: ${publicUrl}` : '';
     return `TeamFlow reminder: ${items.length} items (${overdue} overdue)\n${lines.join('\n')}${items.length > 15 ? `\n...and ${items.length - 15} more` : ''}${link}`;
   }
 
